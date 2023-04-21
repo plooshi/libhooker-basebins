@@ -149,7 +149,7 @@ static NSString *LHTemporaryDirectory(){
 
     char *env = getenv("TMPDIR");
     if (issetugid()){
-        strncpy(buf, PREFIX P_tmpdir, MAXPATHLEN);
+        strncpy(buf, P_tmpdir, MAXPATHLEN);
     } else if (env) {
         strncpy(buf, env, MAXPATHLEN);
     } else {
@@ -195,14 +195,14 @@ static NSString *LHTemporaryDirectory(){
 
 static void SigHandler(int signo, siginfo_t *info, void *uap){
     if (isSpringBoard || isBackboard){
-        FILE *f = fopen(PREFIX "/var/mobile/Library/.sbinjectSafeMode", "w");
+        FILE *f = fopen("/var/mobile/Library/.sbinjectSafeMode", "w");
         if (f){
             fprintf(f, "Hello World\n");
             fclose(f);
         }
     }
     if (processHash){
-        FILE *f = fopen([[NSString stringWithFormat:@"%@%@/.safeMode-%@", @PREFIX, LHTemporaryDirectory(), processHash] UTF8String], "w");
+        FILE *f = fopen([[NSString stringWithFormat:@"%@/.safeMode-%@", LHTemporaryDirectory(), processHash] UTF8String], "w");
         if (f){
             fprintf(f, "Hello World!\n");
             fclose(f);
@@ -347,7 +347,7 @@ NSDictionary *preferencesForExecutable(NSDictionary *preferences){
 __attribute__ ((constructor))
 static void ctor(void) {
     NSArray *dylibInjectList = nil;
-    NSDictionary *preferences = [[NSDictionary alloc] initWithContentsOfFile:NSPrefix(@"/var/mobile/Library/Preferences/org.coolstar.libhooker.plist")];
+    NSDictionary *preferences = [[NSDictionary alloc] initWithContentsOfFile:@"/var/mobile/Library/Preferences/org.coolstar.libhooker.plist"];
 
     @autoreleasepool {
         unsetenv("DYLD_INSERT_LIBRARIES");
@@ -401,11 +401,11 @@ static void ctor(void) {
                 sigaction(SIGSYS, &action, NULL);
 
                 if ([processName isEqualToString:@"backboardd"] || [NSBundle.mainBundle.bundleIdentifier isEqualToString:@"com.apple.springboard"]){
-                    if (file_exist(PREFIX "/var/mobile/Library/.sbinjectSafeMode")){
+                    if (file_exist("/var/mobile/Library/.sbinjectSafeMode")){
                         safeMode = true;
                         if ([NSBundle.mainBundle.bundleIdentifier isEqualToString:@"com.apple.springboard"]){
                             if (!file_exist("/var/tmp/com.apple.backboardd/.bbSafeMode")){
-                                unlink(PREFIX "/var/mobile/Library/.sbinjectSafeMode");
+                                unlink("/var/mobile/Library/.sbinjectSafeMode");
                             }
                             LHLog(OS_LOG_TYPE_FAULT, @"Entering Safe Mode!");
                             %init(SafeMode);
@@ -434,7 +434,7 @@ static void ctor(void) {
                 }
 
                 if (processHash){
-                    const char *safeModeByProcPath = [[NSString stringWithFormat:@"%@%@/.safeMode-%@", @PREFIX, LHTemporaryDirectory(), processHash] UTF8String];
+                    const char *safeModeByProcPath = [[NSString stringWithFormat:@"%@/.safeMode-%@", LHTemporaryDirectory(), processHash] UTF8String];
                     if (file_exist((char *)safeModeByProcPath)){
                         safeMode = true;
                         unlink(safeModeByProcPath);
