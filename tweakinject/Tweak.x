@@ -347,7 +347,7 @@ NSDictionary *preferencesForExecutable(NSDictionary *preferences){
 __attribute__ ((constructor))
 static void ctor(void) {
     NSArray *dylibInjectList = nil;
-    NSDictionary *preferences = [[NSDictionary alloc] initWithContentsOfFile:@"/var/mobile/Library/Preferences/org.coolstar.libhooker.plist"];
+    NSDictionary *preferences = [[NSDictionary alloc] initWithContentsOfFile:@"/var/mobile/Library/Preferences/dev.ploosh.libhooker-oss.plist"];
 
     @autoreleasepool {
         unsetenv("DYLD_INSERT_LIBRARIES");
