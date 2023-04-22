@@ -46,7 +46,7 @@ fprintf(log_file, fmt "\n", ##args); \
 fflush(log_file); \
 } while(0)
 #else
-#define DEBUGLOG(fmt, args...)
+#define DEBUGLOG(fmt, args...) printf(fmt "\n", ##args);
 #endif
 
 #define PSPAWN_PAYLOAD_DYLIB PREFIX "/usr/libexec/libhooker/pspawn_payload.dylib"
@@ -327,6 +327,8 @@ int sandbox_check_by_audit_token(audit_token_t, const char *operation, int sandb
 static int (*old_sandbox_check_by_audit_token)(audit_token_t, const char *operation, int sandbox_filter_type, ...);
 static int (*old_sandbox_check_by_audit_token_broken)(audit_token_t, const char *operation, int sandbox_filter_type, ...);
 static int fake_sandbox_check_by_audit_token(audit_token_t au, const char *operation, int sandbox_filter_type, ...) {
+    DEBUGLOG("gm");
+
     int retval;
     if (!strncmp(operation, "mach-", 5)) {
         va_list a;
@@ -398,9 +400,9 @@ static void rebind_pspawns(void) {
 
     // older palera1n builds interpose sandbox_check_by_audit_token
     // so we use sandbox_check in that case
-    void *jb = dlopen("/cores/jb.dylib", RTLD_NOW);
+    void *jb = dlopen("/cores/jb.dylib", RTLD_LAZY);
     if (jb == NULL) {
-        jb = dlopen("/jbin/jb.dylib", RTLD_NOW);
+        jb = dlopen("/jbin/jb.dylib", RTLD_LAZY);
     }
     struct rebinding scheck_rebind;
 
