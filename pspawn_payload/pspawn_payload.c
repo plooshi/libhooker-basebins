@@ -1,7 +1,7 @@
 #include <stdlib.h>
-#if PSPAWN_PAYLOAD_DEBUG
+//#if PSPAWN_PAYLOAD_DEBUG
 #include <stdio.h>
-#endif
+//#endif
 #include <unistd.h>
 #include <sys/stat.h>
 #include <spawn.h>
