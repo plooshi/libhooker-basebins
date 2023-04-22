@@ -329,7 +329,7 @@ static int (*old_sandbox_check_by_audit_token_broken)(audit_token_t, const char 
 static int fake_sandbox_check_by_audit_token(audit_token_t au, const char *operation, int sandbox_filter_type, ...) {
     DEBUGLOG("gm");
 
-    int retval;
+/*    int retval;
     if (!strncmp(operation, "mach-", 5)) {
         va_list a;
         va_start(a, sandbox_filter_type);
@@ -356,7 +356,32 @@ static int fake_sandbox_check_by_audit_token(audit_token_t au, const char *opera
     } else {
         retval = old_sandbox_check_by_audit_token(au, operation, sandbox_filter_type, NULL);
     }
-    return retval;
+    return retval;*/
+        va_list a;
+        va_start(a, sandbox_filter_type);
+        const char *name = va_arg(a, const char *);
+        const void *arg2 = va_arg(a, void *);
+        const void *arg3 = va_arg(a, void *);
+        const void *arg4 = va_arg(a, void *);
+        const void *arg5 = va_arg(a, void *);
+        const void *arg6 = va_arg(a, void *);
+        const void *arg7 = va_arg(a, void *);
+        const void *arg8 = va_arg(a, void *);
+        const void *arg9 = va_arg(a, void *);
+        const void *arg10 = va_arg(a, void *);
+        va_end(a);
+        if (name && operation) {
+            if (strcmp(operation, "mach-lookup") == 0) {
+                if (strncmp((char *)name, "jb-global-", sizeof("jb-global-")-1) == 0) {
+                    return 0;
+                }
+            }else if (strcmp(operation, "mach-register") == 0) {
+                if (strncmp((char *)name, "jb-global-unsandbox-", sizeof("jb-global-unsandbox-")-1) == 0) {
+                    return 0;
+                }
+            }
+        }
+        return old_sandbox_check_by_audit_token(au, operation, sandbox_filter_type, name, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
 }
 
 int sandbox_check(pid_t, const char *, int type, ...);
