@@ -9,6 +9,7 @@
 #include <dlfcn.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include "fishhook.h"
 #include "memDebug.h"
 
@@ -322,6 +323,40 @@ static struct mach_exception mach_lookup_exception_list[] = {
 };
 #undef DECL_EXCEPTION
 
+int sandbox_check_by_audit_token(audit_token_t, const char *operation, int sandbox_filter_type, ...);
+static int (*old_sandbox_check_by_audit_token)(audit_token_t, const char *operation, int sandbox_filter_type, ...);
+static int (*old_sandbox_check_by_audit_token_broken)(audit_token_t, const char *operation, int sandbox_filter_type, ...);
+static int fake_sandbox_check_by_audit_token(audit_token_t au, const char *operation, int sandbox_filter_type, ...) {
+    int retval;
+    if (!strncmp(operation, "mach-", 5)) {
+        va_list a;
+        va_start(a, sandbox_filter_type);
+        const char *name = va_arg(a, const char *);
+        va_end(a);
+
+        if (!name) {
+            // sure, why not
+            return 0;
+        }
+
+        if (strcmp(operation + 5, "lookup") != 0)
+            goto passthru;
+
+        for (struct mach_exception *ent = mach_lookup_exception_list; ent->length != 0; ++ent) {
+            if (!strncmp((char *)name, ent->prefix, ent->length)) {
+                DEBUGLOG("MACH: Passing for %s", name);
+                return 0;
+            }
+        }
+
+      passthru:
+        retval = old_sandbox_check_by_audit_token(au, operation, sandbox_filter_type, name);
+    } else {
+        retval = old_sandbox_check_by_audit_token(au, operation, sandbox_filter_type, NULL);
+    }
+    return retval;
+}
+
 int sandbox_check(pid_t, const char *, int type, ...);
 static int (*old_sandbox_check)(pid_t, const char *, int type, ...);
 static int (*old_sandbox_check_broken)(pid_t, const char *, int type, ...);
@@ -360,11 +395,37 @@ static void rebind_pspawns(void) {
     void *libsystem = dlopen("/usr/lib/libSystem.B.dylib", RTLD_NOW);
     old_pspawn = dlsym(libsystem, "posix_spawn");
     old_pspawnp = dlsym(libsystem, "posix_spawnp");
-    old_sandbox_check = dlsym(libsystem, "sandbox_check");
+
+    // older palera1n builds interpose sandbox_check_by_audit_token
+    // so we use sandbox_check in that case
+    void *jb = dlopen("/cores/jb.dylib", RTLD_NOW);
+    if (jb == NULL) {
+        jb = dlopen("/jbin/jb.dylib", RTLD_NOW);
+    }
+    struct rebinding scheck_rebind;
+
+    if (jb != NULL) {
+        void *interpose_fn = dlsym(jb, "my_sandbox_check_by_audit_token");
+        if (interpose_fn != NULL) {
+            scheck_rebind.name = "sandbox_check";
+            scheck_rebind.replacement = (void *)fake_sandbox_check;
+            scheck_rebind.replaced = (void **)&old_sandbox_check_broken;
+            old_sandbox_check = dlsym(libsystem, "sandbox_check");
+        } else {
+            goto use_audit_token;
+        }
+    } else {
+        use_audit_token:
+            scheck_rebind.name = "sandbox_check_by_audit_token";
+            scheck_rebind.replacement = (void *)fake_sandbox_check_by_audit_token;
+            scheck_rebind.replaced = (void **)&old_sandbox_check_by_audit_token_broken;
+            old_sandbox_check_by_audit_token = dlsym(libsystem, "sandbox_check_by_audit_token");
+    }
+
     struct rebinding rebindings[] = {
         {"posix_spawn", (void *)fake_posix_spawn, (void **)&old_pspawn_broken},
         {"posix_spawnp", (void *)fake_posix_spawnp, (void **)&old_pspawnp_broken},
-        {"sandbox_check", (void *)fake_sandbox_check, (void **)&old_sandbox_check_broken}
+        scheck_rebind
     };
     
     rebind_symbols(rebindings, 3);
