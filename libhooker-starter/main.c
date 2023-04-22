@@ -14,15 +14,11 @@ extern char **environ;
 
 int main(){
 	mach_port_t taskPort = MACH_PORT_NULL;
-	kern_return_t ret = task_for_pid(mach_task_self(), 0, &taskPort);
+	kern_return_t ret = task_for_pid(mach_task_self(), 1, &taskPort);
 
 	if (ret != KERN_SUCCESS || !MACH_PORT_VALID(taskPort)) {
-		ret = host_get_special_port(mach_host_self(), HOST_LOCAL_NODE, 4, &taskPort);
-
-		if (ret != KERN_SUCCESS || !MACH_PORT_VALID(taskPort)) {
-			printf("No tfp0 / hgsp4. Exiting\n");
+			printf("No tfp1, not running as root? Exiting.\n");
 			return -1;
-		}
 	}
 
 	mach_port_deallocate(mach_task_self(), taskPort);
