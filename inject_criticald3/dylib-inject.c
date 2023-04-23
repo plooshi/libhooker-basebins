@@ -65,13 +65,13 @@ mach_vm_address_t copy_shc_into_mem(mach_port_t target, uint32_t *shc, uint32_t 
 
     kr = mach_vm_allocate(target, &region, sizeof(uint32_t) * count, VM_FLAGS_ANYWHERE);
     CHK_KR(kr, "shc_mach_vm_allocate");
-    kr = mach_vm_protect(target, region, sizeof(uint32_t) * count, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+    kr = mach_vm_protect(target, region, sizeof(uint32_t) * count, 1, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
     CHK_KR(kr, "shc_mach_vm_protect");
 
     kr = mach_vm_write(target, region, (mach_vm_address_t) shc, sizeof(uint32_t) * count);
     CHK_KR(kr, "shc_mach_vm_write");
 
-    kr = mach_vm_protect(target, region, sizeof(uint32_t) * count, VM_PROT_READ | VM_PROT_EXECUTE);
+    kr = mach_vm_protect(target, region, sizeof(uint32_t) * count, 1, VM_PROT_READ | VM_PROT_EXECUTE);
     CHK_KR(kr, "shc_mach_vm_protect2");
 
     return region;
@@ -91,7 +91,7 @@ kern_return_t inject_dylib(mach_port_t target, char *dylib){
     mach_vm_address_t remoteStr;
     kr = mach_vm_allocate(target, &remoteStr, 0x100 + strlen(dylib) + 1, VM_FLAGS_ANYWHERE);
     CHK_KR(kr, "mach_vm_allocate2");
-    kr = mach_vm_protect(target, remoteStr, 0x100 + strlen(dylib) + 1, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+    kr = mach_vm_protect(target, remoteStr, 0x100 + strlen(dylib) + 1, 1, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
     CHK_KR(kr, "mach_vm_protect2");
     kr = mach_vm_write(target, remoteStr + 0x100, (vm_offset_t)dylib, (mach_msg_type_number_t)strlen(dylib) + 1);
     CHK_KR(kr, "mach_vm_write2");
@@ -114,7 +114,8 @@ kern_return_t inject_dylib(mach_port_t target, char *dylib){
     #endif
 
     uint32_t dylib_movk[4];
-    movk_ptr(dylib_movk, 0, remoteStr + 0x100);
+    void *rStrAddr = remoteStr + 0x100;
+    movk_ptr(dylib_movk, 0, rStrAddr);
     uint32_t dlopen_movk[4];
     movk_ptr(dlopen_movk, 10, dlopen_ptr);
     uint32_t create_movk[4];
@@ -177,11 +178,11 @@ kern_return_t inject_dylib(mach_port_t target, char *dylib){
     
     mach_port_t remoteThread;
 
-    kr = thread_create_running(target, ARM_THREAD_STATE64, state, ARM_THREAD_STATE64_COUNT, &remoteThread);
+    kr = thread_create_running(target, ARM_THREAD_STATE64, (thread_state_t) &state, ARM_THREAD_STATE64_COUNT, &remoteThread);
     CHK_KR(kr, "thread_create_running");
 
-    if (remoteThread == NULL) {
-        printf("Remote thread is NULL!\n");
+    if (remoteThread == 0) {
+        fprintf(stderr, "Remote thread is NULL!\n");
         return 1;
     }
     
