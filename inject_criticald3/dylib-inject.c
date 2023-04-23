@@ -45,9 +45,9 @@ void movk_ptr(uint32_t *insns, char reg, void *ptr) {
     uint32_t base = 0xf2800000 | reg;
     uint64_t addr = (uint64_t) ptr;
 
-    for (char i = 0; i < 4; i++) {
+    for (short i = 0; i < 4; i++) {
         insns[i] = base;
-        short seg = ((uint64_t)ptr / minipow(65536, i)) % 65536;
+        short seg = (addr / minipow(65536, i)) % 65536;
         insns[i] |= (uint32_t) (seg << 5);
         insns[i] |= (uint32_t) (i << 21);
     }
@@ -108,13 +108,12 @@ kern_return_t inject_dylib(mach_port_t target, char *dylib){
     void *pt_create = dlsym(libsystem, "pthread_create_from_mach_thread");
     void *dlopen_ptr = dlsym(libdyld, "dlopen");
     #ifdef __arm64e__
-    ptrauth_strip(pt_exit, ptrauth_key_function_pointer);
     ptrauth_strip(pt_create, ptrauth_key_function_pointer);
     ptrauth_strip(dlopen_ptr, ptrauth_key_function_pointer);
     #endif
 
     uint32_t dylib_movk[4];
-    void *rStrAddr = remoteStr + 0x100;
+    void *rStrAddr = (void *) remoteStr + 0x100;
     movk_ptr(dylib_movk, 0, rStrAddr);
     uint32_t dlopen_movk[4];
     movk_ptr(dlopen_movk, 10, dlopen_ptr);
@@ -165,7 +164,7 @@ kern_return_t inject_dylib(mach_port_t target, char *dylib){
 
     mach_vm_address_t start_addr = copy_shc_into_mem(target, thread_start, sizeof(thread_start) / sizeof(uint32_t));
     #ifdef __arm64e__
-    start_addr = ptrauth_sign_unauthenticated(ptrauth_strip(start_addr, ptrauth_key_function_pointer), ptrauth_key_function_pointer, 0);
+    start_addr = ptrauth_sign_unauthenticated(ptrauth_strip((void *)start_addr, ptrauth_key_function_pointer), ptrauth_key_function_pointer, 0);
     #endif
 
 
@@ -173,7 +172,7 @@ kern_return_t inject_dylib(mach_port_t target, char *dylib){
     bzero(&state, sizeof(arm_thread_state64_t));
 
     state.__x[2] = target_addr;
-    __darwin_arm_thread_state64_set_pc_fptr(state, start_addr);
+    __darwin_arm_thread_state64_set_pc_fptr(state, (void *) start_addr);
     __darwin_arm_thread_state64_set_sp(state, (void *)(remoteStack + stackPointer*sizeof(uint64_t)));
     
     mach_port_t remoteThread;
