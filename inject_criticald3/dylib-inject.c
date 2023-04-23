@@ -164,7 +164,7 @@ kern_return_t inject_dylib(mach_port_t target, char *dylib){
 
     mach_vm_address_t start_addr = copy_shc_into_mem(target, thread_start, sizeof(thread_start) / sizeof(uint32_t));
     #ifdef __arm64e__
-    start_addr = ptrauth_sign_unauthenticated(ptrauth_strip((void *)start_addr, ptrauth_key_function_pointer), ptrauth_key_function_pointer, 0);
+    start_addr = (mach_vm_address_t) ptrauth_sign_unauthenticated(ptrauth_strip((void *)start_addr, ptrauth_key_function_pointer), ptrauth_key_function_pointer, 0);
     #endif
 
 
@@ -189,8 +189,6 @@ kern_return_t inject_dylib(mach_port_t target, char *dylib){
     CHK_KR(kr, "thread_resume");
 
     usleep(500 * 1000);
-    
-    //Wait for exception
 
 
     kr = thread_suspend(remoteThread);
