@@ -364,10 +364,10 @@ static void rebind_pspawns(void) {
     struct rebinding rebindings[] = {
         {"posix_spawn", (void *)fake_posix_spawn, (void **)&old_pspawn_broken},
         {"posix_spawnp", (void *)fake_posix_spawnp, (void **)&old_pspawnp_broken},
-        {"sandbox_check", (void *)fake_sandbox_check, (void **)&old_sandbox_check_broken}
+        //{"sandbox_check", (void *)fake_sandbox_check, (void **)&old_sandbox_check_broken}
     };
     
-    rebind_symbols(rebindings, 3);
+    rebind_symbols(rebindings, 2);
 }
 
 static void* thd_func(void* arg){
